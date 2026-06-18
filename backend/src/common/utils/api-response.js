@@ -1,5 +1,3 @@
-import { success } from "zod"
-
 class ApiResponse {
     
     static ok(res, message, data = null){

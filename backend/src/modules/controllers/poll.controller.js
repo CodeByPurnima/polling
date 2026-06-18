@@ -24,7 +24,7 @@ const getMyPolls = async (req, res) => {
         createdBy: req.user.id
     }).sort({ createdAt: -1 });
 
-    if(!polls){
+    if(polls.length === 0){
         throw ApiError.notfound("No polls found")
     }
 
@@ -46,7 +46,7 @@ const getAllPolls = async(req, res) => {
     }
 
     const polls = await Poll.find(query).sort({ createdAt: -1 })
-    if(polls.lenght === 0){
+    if(polls.length === 0){
         throw ApiError.notfound("No polls found")
     }
 
@@ -60,15 +60,15 @@ const getPollById = async (req, res) => {
     }
     
     const poll = await Poll.findById(id);
+    if(!poll){
+        throw ApiError.notfound("No polls found")
+    }
 
     const pollData = {
         ...poll.toObject(),
         status: poll.endsAt > new Date() ? "live" : "closed"
     };
 
-    if(!poll){
-        throw ApiError.notfound("No polls found")
-    }
 
     ApiResponse.ok(res, "Poll fetched", pollData);
 };

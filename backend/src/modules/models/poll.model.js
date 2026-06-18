@@ -23,7 +23,7 @@ const pollSchema = new mongoose.Schema({
     }],
     allowMultipleVotes: {
         type: Boolean,
-        deafult: false
+        default: false
     },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,

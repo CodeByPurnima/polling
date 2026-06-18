@@ -29,6 +29,14 @@ const votePoll = async (req, res) => {
         throw ApiError.badRequest("Invalid option");
     }
 
+    const existingVote = await Vote.findOne({
+        pollId: poll._id,
+        votedby: req.user.id
+    })
+    
+    if(existingVote){
+        throw ApiError.conflict("You have already voted on this poll")
+    }
     const vote = await Vote.create({
         pollId: poll._id,
         votedBy: req.user.id,
@@ -113,22 +121,27 @@ const updateVote = async(req, res) => {
         throw ApiError.badRequest("Invalid option");
     }
 
-    const vote = await Vote.findByIdAndUpdate({
+    const existingVote = await Vote.findOne({
         pollId: poll._id,
-        votedBy: req.user.id,
-        option
+        votedBy: req.user.id
     })
 
+    if(!existingVote){
+        throw ApiError.notfound("You haven't voted on this poll yet")
+    }
+
+    const oldOption = existingVote.option
+
+    existingVote.option = option
+    await existingVote.save()
+
     await Poll.updateOne(
-        {
-            _id: poll._id,
-            "options._id": option
-        },
-        {
-            $inc: {
-                "options.$.votes": 1
-            }
-        }
+        {_id: poll._id, "options._id": oldOption},
+        {$inc: {"options.$.votes": -1}}
+    );
+    await Poll.updateOne(
+        {_id: poll._id, "options._id": option},
+        {$inc: {"options.$.votes": 1}}
     );
 
     const updatedPoll = await Poll.findById(poll._id)
