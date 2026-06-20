@@ -13,7 +13,6 @@ const createPoll = async(req, res) => {
         description,
         options,
         createdBy: req.user.id,
-        allowMultipleVotes,
         endsAt: new Date(endsAt)
     })
     ApiResponse.created(res, "Poll created successfully", poll)
@@ -45,7 +44,7 @@ const getAllPolls = async(req, res) => {
         query.endsAt = { $lte: new Date()}
     }
 
-    const polls = await Poll.find(query).sort({ createdAt: -1 })
+    const polls = await Poll.find(query).sort({ createdAt: -1 }).populate("createdBy", "username")
     if(polls.length === 0){
         throw ApiError.notfound("No polls found")
     }
@@ -59,7 +58,7 @@ const getPollById = async (req, res) => {
         throw ApiError.badRequest("Invalid id")
     }
     
-    const poll = await Poll.findById(id);
+    const poll = await Poll.findById(id).populate("createdBy", "username");
     if(!poll){
         throw ApiError.notfound("No polls found")
     }
@@ -88,7 +87,7 @@ const deletePollById = async(req, res) => {
         throw ApiError.forbidden("You are not allowed to delete this poll")
     }
 
-    await Poll.findByIdAndDelete(id)
+    await poll.deleteOne()
 
     ApiResponse.ok(res, "Poll deleted successfully");
 }

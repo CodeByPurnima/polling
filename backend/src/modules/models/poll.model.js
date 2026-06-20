@@ -21,10 +21,6 @@ const pollSchema = new mongoose.Schema({
             default:0
         }
     }],
-    allowMultipleVotes: {
-        type: Boolean,
-        default: false
-    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",

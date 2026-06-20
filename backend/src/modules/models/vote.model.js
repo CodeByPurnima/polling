@@ -14,7 +14,12 @@ const voteSchema = new mongoose.Schema({
     option: {
         type: mongoose.Schema.Types.ObjectId,
         required: true
+    },
+    isAnonymous: {
+        type: Boolean,
+        default: false
     }
+
 })
 
 const Vote = mongoose.model("Vote", voteSchema)

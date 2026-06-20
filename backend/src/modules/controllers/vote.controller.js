@@ -6,7 +6,7 @@ import mongoose from 'mongoose'
 import { getIO } from '../../common/config/socket.js'
 
 const votePoll = async (req, res) => {
-    const { option } = req.body
+    const { option, isAnonymous } = req.body
     const { id } = req.params
 
     const poll = await Poll.findById(id)
@@ -37,10 +37,12 @@ const votePoll = async (req, res) => {
     if(existingVote){
         throw ApiError.conflict("You have already voted on this poll")
     }
+
     const vote = await Vote.create({
         pollId: poll._id,
         votedBy: req.user.id,
-        option
+        option,
+        isAnonymous
     });
 
     await Poll.updateOne(
@@ -66,14 +68,14 @@ const votePoll = async (req, res) => {
     ApiResponse.created(res, "Voted successfully", vote)
 }
 
-const getAllVotes = async (req, res) => {
-    const { id } = req.params
+const getVotesData = async (req, res) => {
+    const { id, optionId } = req.params
 
-    if(!id){
+    if(!id || !optionId){
         throw ApiError.badRequest("Id is required")
     }
 
-    if(!mongoose.Types.ObjectId.isValid(id)){
+    if(!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(optionId)){
         throw ApiError.badRequest("Invalid id")
     }
 
@@ -82,19 +84,26 @@ const getAllVotes = async (req, res) => {
     if(!poll){
         throw ApiError.notfound("Poll not found")
     }
-
-    if(poll.createdBy.toString() !== req.user.id.toString()){
-        throw ApiError.forbidden("You are not authorized to see votes")
-    }
     
-    const votes = await Vote.find( { pollId: id})
+    const votes = await Vote.find( { pollId: id, option: optionId}).populate("votedBy", "username")
 
     if(votes.length === 0){
         throw ApiError.notfound("No votes to show")
     }
 
-    ApiResponse.ok(res, "Votes fetched", votes)
+    const finalVoteResult = votes.map((vote) => {
+        if (vote.isAnonymous) {
+            return {
+                username: "Anonymous"
+            };
+        }
 
+        return {
+            username: votes.votedBy.username
+        };
+    });
+
+    ApiResponse.ok(res, "Votes fetched", finalVoteResult)
 }
 
 const updateVote = async(req, res) => {
@@ -105,7 +114,7 @@ const updateVote = async(req, res) => {
     if (!poll) {
         throw ApiError.notfound("Polls not found")
     }
-
+    
     if (poll.endsAt <= new Date()) {
         throw ApiError.badRequest("Poll is closed");
     }
@@ -139,12 +148,14 @@ const updateVote = async(req, res) => {
         {_id: poll._id, "options._id": oldOption},
         {$inc: {"options.$.votes": -1}}
     );
+
     await Poll.updateOne(
         {_id: poll._id, "options._id": option},
         {$inc: {"options.$.votes": 1}}
     );
 
     const updatedPoll = await Poll.findById(poll._id)
+
     const io = getIO()
     io.to(`poll:${poll._id}`).emit('vote-updated', {
         pollId: poll._id,
@@ -157,6 +168,6 @@ const updateVote = async(req, res) => {
 
 export {
     votePoll,
-    getAllVotes,
+    getVotesData,
     updateVote
 }
